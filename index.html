@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Speech to Text (Hindi)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      text-align: center;
+      background-color: #f5f5f5;
+    }
+
+    h2 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 48px;
+    }
+
+    #output {
+    margin: 50px auto 50px auto;
+    padding: 15px;
+    width: 95%;
+    height: 1500px;
+    min-height: 100px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 70px;
+    line-height: 1.5;
+    }
+
+    button {
+    padding: 31px 45px;
+    margin: 16px;
+    font-size: 70px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    }
+
+    #mic {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    #mic:hover {
+      background-color: #45a049;
+    }
+
+    #erase {
+      background-color: #f44336;
+      color: white;
+    }
+
+    #erase:hover {
+      background-color: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>मेरे कान खराब हैं, मुझे कुछ सुनाई नहीं देता।<br>इसलिए इस माइक को दबाकर बोल के दिखाएं।</h2>
+
+  <div id="output">यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...</div>
+
+  <button id="mic">🎤 बोलिए</button>
+  <button id="erase">❌ मिटाइए</button>
+
+  <script>
+    const output = document.getElementById('output');
+    const micButton = document.getElementById('mic');
+    const eraseButton = document.getElementById('erase');
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'hi-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    micButton.addEventListener('click', () => {
+      recognition.start();
+      output.innerHTML = "सुन रहा है...";
+    });
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      output.innerHTML = transcript;
+    };
+
+    recognition.onerror = (event) => {
+      output.innerHTML = "त्रुटि: " + event.error;
+    };
+
+    eraseButton.addEventListener('click', () => {
+      output.innerHTML = "";
+    });
+  </script>
+
+</body>
+</html>
