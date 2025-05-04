@@ -5,7 +5,8 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>Speech to Text (Hindi)</title>
   <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTbiyK1eA3OHkF8SuxjH0mI4DYPH5vteHasfKegiUIBbAubuwCGWlCbt7g&s">
-
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4caf50">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -15,21 +16,19 @@
     }
 
     h2 {
-      background-color: #fff3cd;
-      color: #856404;
-      border: 1px solid #ffeeba;
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 48px;
+      background-color: #e0f2f1;
       padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 30px;
-      font-size: 25px;
-      line-height: 1.6;
+      border-radius: 12px;
     }
 
     #output {
       margin: 50px auto 50px auto;
       padding: 15px;
       width: 95%;
-      height: 1000px;
+      height: 1250px;
       min-height: 100px;
       background: white;
       border: 1px solid #ccc;
@@ -72,13 +71,13 @@
 
   <h2>
     🎤 बोलिए बटन को दबा कर बोलिए।<br>
-    अगली बात बोलने के लिए ❌ मिटाइए दबा कर फिर से 🎤 बोलिए दबाएं।
+    अगली बात बोलने के लिए 🗑️ मिटाइए दबा कर फिर से 🎤 बोलिए दबाएं।
   </h2>
 
   <div id="output">यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...</div>
 
   <button id="mic">🎤 बोलिए</button>
-  <button id="erase">❌ मिटाइए</button>
+  <button id="erase">🗑️ मिटाइए</button>
 
   <script>
     const output = document.getElementById('output');
@@ -92,7 +91,7 @@
 
     micButton.addEventListener('click', () => {
       recognition.start();
-      output.innerHTML = "माइक आपकी आवाज़ को सुन रहा है, बोलते रहिए...";
+      output.innerHTML = "🎙️ माइक आपकी आवाज़ को सुन रहा है, बोलते रहिए...";
     });
 
     recognition.onresult = (event) => {
