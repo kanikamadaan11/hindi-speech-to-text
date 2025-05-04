@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>Speech to Text (Hindi)</title>
+  <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTbiyK1eA3OHkF8SuxjH0mI4DYPH5vteHasfKegiUIBbAubuwCGWlCbt7g&s">
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,33 +15,38 @@
     }
 
     h2 {
-    color: #333;
-    margin-bottom: 20px;
-    font-size: 48px;
+      background-color: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      font-size: 48px;
+      line-height: 1.6;
     }
 
     #output {
-    margin: 50px auto 50px auto;
-    padding: 15px;
-    width: 95%;
-    height: 1250px;
-    min-height: 100px;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 70px;
-    line-height: 1.5;
-    overflow-y: auto
+      margin: 50px auto 50px auto;
+      padding: 15px;
+      width: 95%;
+      height: 1250px;
+      min-height: 100px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 70px;
+      line-height: 1.5;
+      overflow-y: auto;
     }
 
     button {
-    padding: 31px 45px;
-    margin: 16px;
-    font-size: 70px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s ease;
+      padding: 31px 45px;
+      margin: 16px;
+      font-size: 70px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
     }
 
     #mic {
@@ -63,7 +70,10 @@
 </head>
 <body>
 
-  <h2>मेरे कान खराब हैं, मुझे कुछ सुनाई नहीं देता।<br>इसलिए इस माइक को दबाकर बोल के दिखाएं।</h2>
+  <h2>
+    🎤 बोलिए बटन को दबा कर बोलिए।<br>
+    अगली बात बोलने के लिए ❌ मिटाइए दबा कर फिर से 🎤 बोलिए दबाएं।
+  </h2>
 
   <div id="output">यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...</div>
 
@@ -82,7 +92,7 @@
 
     micButton.addEventListener('click', () => {
       recognition.start();
-      output.innerHTML = "सुन रहा है...";
+      output.innerHTML = "माइक आपकी आवाज़ को सुन रहा है, बोलते रहिए...";
     });
 
     recognition.onresult = (event) => {
