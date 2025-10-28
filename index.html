@@ -3,60 +3,39 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>लाइव बातचीत (Fixed for Mobile)</title>
+  <title>लाइव बातचीत — Mobile Robust</title>
   <style>
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      padding: 10px;
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      text-align: center;
-      overflow: hidden; /* no page scroll */
+      margin: 0; padding: 10px; font-family: Arial, sans-serif;
+      background: #f9f9f9; text-align: center; overflow: hidden;
     }
     h2 {
-      margin: 6px 0;
-      padding: 8px;
-      font-size: 17px;
-      background: #fff8e1;
-      color: #795548;
-      border-radius: 8px;
-      border: 1px solid #ffe0b2;
-      line-height: 1.25;
+      margin: 6px 0; padding: 8px; font-size: 17px;
+      background:#fff8e1; color:#795548; border-radius:8px;
+      border:1px solid #ffe0b2; line-height:1.25;
     }
     #output {
-      width: 100%;
-      height: 56vh;
-      padding: 12px;
-      background: #fff;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-      text-align: left;
-      font-size: 26px;
-      line-height: 1.4;
-      overflow-y: auto;      /* only this scrolls */
-      white-space: pre-wrap;
+      width:100%; height:56vh; padding:12px;
+      background:#fff; border-radius:10px; border:1px solid #ccc;
+      text-align:left; font-size:26px; line-height:1.4;
+      overflow-y:auto; white-space:pre-wrap;
     }
-    .controls { margin-top: 8px; }
+    .controls { margin-top:8px; }
     button {
-      padding: 10px 14px;
-      margin: 6px;
-      font-size: 20px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      color: #fff;
+      padding:10px 14px; margin:6px; font-size:20px;
+      border-radius:8px; border:none; cursor:pointer; color:#fff;
     }
-    #mic { background: #4caf50; }
-    #live { background: #2196f3; }
-    #stopLive { background: #ff9800; display: none; }
-    #erase { background: #f44336; }
+    #mic { background:#4caf50; }
+    #live { background:#2196f3; }
+    #stopLive { background:#ff9800; display:none; }
+    #erase { background:#f44336; }
     .hint { margin-top:8px; font-size:13px; color:#666; }
   </style>
 </head>
 <body>
 
-  <h2>🎤 “बोलिए” — एक बार बोलें  •  🎙️ “लाइव बातचीत” — लगातार सुनें</h2>
+  <h2>🎤 “बोलिए” — एक बार बोलें • 🎙️ “लाइव बातचीत” — लगातार सुनें</h2>
 
   <div id="output">यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...</div>
 
@@ -67,194 +46,225 @@
     <button id="erase">🧹 मिटाइए</button>
   </div>
 
-  <div class="hint">यदि त्रुटि दिखे तो बताएं — मैं तुरंत और ट्यून कर दूँगा।</div>
+  <div class="hint">यदि समस्या फिर भी बनी रहे तो मैं तुरंत एक छोटा debug build दे दूंगा जो स्क्रीन पर raw events दिखाएगा।</div>
 
   <script>
+  (function() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const output = document.getElementById('output');
-    const mic = document.getElementById('mic');
-    const live = document.getElementById('live');
-    const stopLive = document.getElementById('stopLive');
-    const erase = document.getElementById('erase');
+    const btnMic = document.getElementById('mic');
+    const btnLive = document.getElementById('live');
+    const btnStop = document.getElementById('stopLive');
+    const btnErase = document.getElementById('erase');
 
     if (!SpeechRecognition) {
-      output.innerText = "आपका ब्राउज़र Speech Recognition सपोर्ट नहीं करता — Chrome/Edge उपयोग करें।";
+      output.innerText = "आपका ब्राउज़र Speech Recognition सपोर्ट नहीं करता — कृपया Chrome/Edge उपयोग करें।";
+      btnMic.disabled = btnLive.disabled = btnStop.disabled = true;
+      return;
     }
 
-    // ---------- Single (one-shot) recognition ----------
+    // ---- single-shot recognition (unchanged behavior) ----
     const singleRec = new SpeechRecognition();
     singleRec.lang = 'hi-IN';
     singleRec.interimResults = false;
     singleRec.maxAlternatives = 1;
 
-    mic.addEventListener('click', () => {
-      try {
-        singleRec.start();
-        output.innerText = "🎙️ माइक सुन रहा है...";
-      } catch (e) { console.warn('singleRec start error', e); }
+    btnMic.addEventListener('click', () => {
+      try { singleRec.start(); output.innerText = "🎙️ माइक सुन रहा है..."; }
+      catch(e){ console.warn(e); }
     });
 
     singleRec.onresult = (ev) => {
-      const text = ev.results[0][0].transcript;
-      output.innerText = text;
+      try { output.innerText = ev.results[0][0].transcript; } catch(e){ console.warn(e); }
     };
+    singleRec.onerror = (ev) => { output.innerText = "⚠️ त्रुटि: " + ev.error; };
 
-    singleRec.onerror = (ev) => {
-      output.innerText = "⚠️ त्रुटि: " + ev.error;
-    };
-
-    // ---------- Live continuous recognition (robust dedupe) ----------
-    const liveRec = new SpeechRecognition();
-    liveRec.lang = 'hi-IN';
-    liveRec.interimResults = true;
-    liveRec.continuous = true;
-
+    // ---- robust live recognition ----
+    let sessionCounter = 0;
     let isLiveActive = false;
-    let recognizing = false;       // true when recognition session is active
+    let recognizing = false;    // true when a recognition session is active (onstart)
     let restarting = false;
-    let committedText = "";        // final committed text visible to user
-    const recentFinals = new Map(); // map: normalizedTranscript -> timestamp(ms)
-    const DEDUPE_WINDOW_MS = 5000;  // ignore same final transcript within 5s
+    let restartAttempts = 0;
+    const MAX_RESTARTS = 8;     // after many restarts, stop and show message
+    const RESTART_DELAYS = [400, 800, 1200, 1600, 2000]; // backoff cycle
+    let committedText = "";     // accumulated final text
+    let recentFinals = new Map(); // normalizedText -> timestamp (ms)  (dedupe across sessions)
+    let recentKeys = new Set();   // sessionKey (norm|resultIndex|session) to avoid duplicates
+    const DEDUPE_WINDOW_MS = 5000; // treat same final as duplicate within 5s
 
-    // helper: normalize transcript for robust comparison
-    function normalizeText(s) {
-      return (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    // normalize for comparison
+    function normalize(s){
+      return (s||'').trim().toLowerCase().replace(/\s+/g,' ');
     }
-
-    // cleanup old entries in recentFinals
-    function cleanupFinals() {
+    function cleanupCaches(){
       const now = Date.now();
       for (const [k, ts] of recentFinals.entries()) {
-        if (now - ts > DEDUPE_WINDOW_MS * 2) recentFinals.delete(k);
+        if (now - ts > DEDUPE_WINDOW_MS * 3) recentFinals.delete(k);
       }
+      // limit recentKeys size
+      if (recentKeys.size > 500) recentKeys = new Set([...recentKeys].slice(-300));
     }
 
-    // safe start: only call start when not already recognizing
-    function safeStartRecognition() {
+    // create a fresh recognition each time to avoid internal state issues
+    function createLiveRecognition(mySessionId) {
+      const r = new SpeechRecognition();
+      r.lang = 'hi-IN';
+      r.interimResults = true;
+      // continuous requested; mobile may not honor but we'll restart safely
+      r.continuous = true;
+      r._sessionId = mySessionId;
+      return r;
+    }
+
+    // start a new recognition session safely
+    let liveRec = null;
+    function startNewSession() {
       if (recognizing) return;
+      sessionCounter += 1;
+      const sid = sessionCounter;
+      liveRec = createLiveRecognition(sid);
+
+      // event handlers
+      liveRec.onstart = () => {
+        recognizing = true;
+        restartAttempts = 0;
+        restarting = false;
+        // console.log('session start', sid);
+      };
+
+      liveRec.onresult = (ev) => {
+        cleanupCaches();
+        try {
+          const sid = liveRec._sessionId;
+          let interimParts = [];
+          for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const res = ev.results[i];
+            const txt = res[0] && res[0].transcript ? res[0].transcript.trim() : '';
+            if (res.isFinal) {
+              const norm = normalize(txt);
+              // key to prevent duplicates across sessions/indices
+              const key = norm + '|' + i + '|' + sid;
+              // time-based dedupe by normalized text too
+              const lastTs = recentFinals.get(norm) || 0;
+              const now = Date.now();
+
+              if (!recentKeys.has(key) && (norm && (now - lastTs > DEDUPE_WINDOW_MS))) {
+                // append committed text
+                committedText += (committedText ? ' ' : '') + txt;
+                recentFinals.set(norm, now);
+                recentKeys.add(key);
+              } else {
+                // duplicate detected; ignore
+              }
+            } else {
+              if (txt) interimParts.push(txt);
+            }
+          }
+          // display committed + interim
+          const interimText = interimParts.length ? ("\n" + interimParts.join(' ')) : "";
+          output.innerText = (committedText ? committedText : "") + interimText;
+          output.scrollTop = output.scrollHeight;
+        } catch (e) { console.warn('onresult error', e); }
+      };
+
+      liveRec.onerror = (ev) => {
+        // ignore benign errors; for others increment restartAttempts
+        if (ev && ev.error && ev.error !== 'no-speech' && ev.error !== 'aborted') {
+          // log but don't spam the user
+          output.innerText += "\n⚠️ त्रुटि: " + ev.error;
+        }
+      };
+
+      liveRec.onend = () => {
+        recognizing = false;
+        // if live still active, attempt restart with backoff but avoid overlaps
+        if (!isLiveActive) return;
+        if (restartAttempts >= MAX_RESTARTS) {
+          isLiveActive = false;
+          btnStop.style.display = 'none';
+          btnLive.style.display = 'inline-block';
+          output.innerText += "\n🛑 बार-बार रोक होने के कारण लाइव रोका गया। कृपया Chrome को अपडेट करें या नॉर्मल मोड आज़माएँ।";
+          return;
+        }
+        // backoff delay
+        restarting = true;
+        const delay = RESTART_DELAYS[Math.min(restartAttempts, RESTART_DELAYS.length - 1)];
+        restartAttempts++;
+        setTimeout(() => {
+          restarting = false;
+          if (isLiveActive) safeStart(); // try start again
+        }, delay);
+      };
+
+      // safe start (guards around start())
       try {
         liveRec.start();
-        // start may be asynchronous; onstart will set recognizing true
       } catch (e) {
-        // Chrome may throw if still in transient state — retry shortly
+        // start may throw if invoked in transient state; retry shortly
         setTimeout(() => {
           try { liveRec.start(); } catch (err) { console.warn('start retry failed', err); }
         }, 300);
       }
     }
 
-    live.addEventListener('click', () => {
+    function safeStart() {
+      if (recognizing || restarting) return;
+      startNewSession();
+    }
+
+    btnLive.addEventListener('click', () => {
       if (isLiveActive) return;
       isLiveActive = true;
-      committedText = ""; // start fresh; change if you prefer append
-      recentFinals.clear();
-      output.innerText = "🎧 लाइव बातचीत चालू है... बोलते रहिए।";
-      live.style.display = 'none';
-      stopLive.style.display = 'inline-block';
-      safeStartRecognition();
+      committedText = ""; recentFinals.clear(); recentKeys.clear();
+      output.innerText = "🎧 लाइव बातचीत चालू है... बोलिए।";
+      btnLive.style.display = 'none';
+      btnStop.style.display = 'inline-block';
+      restartAttempts = 0;
+      safeStart();
     });
 
-    liveRec.onstart = () => {
-      recognizing = true;
-      // console.debug('liveRec onstart');
-    };
-
-    liveRec.onresult = (ev) => {
-      // First, cleanup old cached finals
-      cleanupFinals();
-
-      let interimParts = [];
-      for (let i = ev.resultIndex; i < ev.results.length; ++i) {
-        const res = ev.results[i];
-        const transcript = (res[0] && res[0].transcript) ? res[0].transcript.trim() : '';
-        if (res.isFinal) {
-          const key = normalizeText(transcript);
-          const now = Date.now();
-          const lastTs = recentFinals.get(key) || 0;
-
-          // Append only if not seen recently
-          if (transcript && (now - lastTs > DEDUPE_WINDOW_MS)) {
-            // commit this final
-            committedText += (committedText ? " " : "") + transcript;
-            recentFinals.set(key, now);
-          } else {
-            // duplicate detected — ignore
-            // console.debug('duplicate final ignored:', transcript);
-          }
-        } else {
-          // interim
-          if (transcript) interimParts.push(transcript);
-        }
-      }
-
-      // Show committed finals + interim overlay underneath
-      const interimText = interimParts.length ? ("\n" + interimParts.join(' ')) : "";
-      output.innerText = (committedText ? committedText : "") + interimText;
-      output.scrollTop = output.scrollHeight;
-    };
-
-    liveRec.onerror = (ev) => {
-      // ignore benign errors (no-speech, aborted) to avoid spam
-      if (ev.error && ev.error !== 'no-speech' && ev.error !== 'aborted') {
-        output.innerText += "\n⚠️ त्रुटि: " + ev.error;
-      }
-    };
-
-    liveRec.onend = () => {
-      recognizing = false;
-      // Restart only if live mode still active. Use restarting guard to prevent overlap.
-      if (!isLiveActive) return;
-      if (restarting) return;
-      restarting = true;
-      // small delay gives browser time to fully terminate the previous session
-      setTimeout(() => {
-        restarting = false;
-        if (isLiveActive) safeStartRecognition();
-      }, 600); // increased a bit to be safer on S23
-    };
-
-    liveRec.onnomatch = () => {
-      // no match — ignore
-    };
-
-    liveRec.onaudioend = () => {
-      // audio ended — nothing
-    };
-
-    liveRec.onpause = () => {
-      // not widely used, ignore
-    };
-
-    liveRec.onstop = () => {
-      recognizing = false;
-    };
-
-    stopLive.addEventListener('click', () => {
+    btnStop.addEventListener('click', () => {
       isLiveActive = false;
-      try { liveRec.stop(); } catch (e) {}
-      stopLive.style.display = 'none';
-      live.style.display = 'inline-block';
+      try {
+        if (liveRec) liveRec.stop();
+      } catch (e) {}
+      btnStop.style.display = 'none';
+      btnLive.style.display = 'inline-block';
       output.innerText = (committedText ? committedText + "\n" : "") + "🛑 बातचीत रोक दी गई।";
       output.scrollTop = output.scrollHeight;
     });
 
-    erase.addEventListener('click', () => {
+    btnErase.addEventListener('click', () => {
       committedText = "";
-      recentFinals.clear();
+      recentFinals.clear(); recentKeys.clear();
       output.innerText = "यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...";
     });
 
-    // Safety: if browser tab becomes hidden, stop live to avoid weird behavior
+    // keep safe if tab hidden
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && isLiveActive) {
-        // stop gracefully
         isLiveActive = false;
-        try { liveRec.stop(); } catch (e) {}
-        stopLive.style.display = 'none';
-        live.style.display = 'inline-block';
+        try { if (liveRec) liveRec.stop(); } catch(e){}
+        btnStop.style.display = 'none';
+        btnLive.style.display = 'inline-block';
         output.innerText = (committedText ? committedText + "\n" : "") + "🛑 बातचीत रोक दी गई (पृष्ठ छिपा)।";
       }
     });
+
+    // optional: expose a lightweight debug overlay when developers add #debug to URL
+    if (location.hash === '#debug') {
+      const dbg = document.createElement('div');
+      dbg.style.position = 'fixed'; dbg.style.right = '8px'; dbg.style.bottom = '8px';
+      dbg.style.background = 'rgba(0,0,0,0.6)'; dbg.style.color = '#fff'; dbg.style.padding = '6px';
+      dbg.style.fontSize = '12px'; dbg.style.zIndex = 9999;
+      document.body.appendChild(dbg);
+      setInterval(() => {
+        dbg.innerText = `live:${isLiveActive} recog:${recognizing} rest:${restarting} sess:${sessionCounter} commits:${committedText ? committedText.length : 0}`;
+      }, 500);
+    }
+
+  })();
   </script>
+
 </body>
 </html>
