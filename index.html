@@ -2,203 +2,175 @@
 <html lang="hi">
 <head>
   <meta charset="UTF-8">
-  <title>Speech to Text (Hindi)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#4caf50">
+  <title>लाइव बातचीत</title>
   <style>
     * { box-sizing: border-box; }
     body {
-      margin: 0; padding: 10px;
+      margin: 0;
       font-family: Arial, sans-serif;
-      background:#f9f9f9; text-align:center;
-      overflow: hidden; /* prevent whole-page scroll */
+      background: #f9f9f9;
+      overflow: hidden; /* No full page scroll */
+      text-align: center;
+      padding: 10px;
     }
     h2 {
       margin: 4px 0 10px;
       padding: 8px;
       font-size: 17px;
-      background:#fff8e1; color:#795548;
-      border-radius:8px; border:1px solid #ffe0b2;
-      line-height:1.25;
+      background:#fff8e1;
+      color:#795548;
+      border:1px solid #ffe0b2;
+      border-radius:8px;
+      line-height:1.3;
     }
     #output {
       width:100%;
       height:56vh;
       padding:12px;
+      font-size:26px;
       background:#fff;
       border-radius:10px;
       border:1px solid #ccc;
-      font-size:26px;
-      line-height:1.4;
       text-align:left;
-      overflow-y:auto; /* only this scrolls */
+      overflow-y:auto; /* Only scroll inside text box */
       white-space:pre-wrap;
     }
-    .controls { margin-top:8px; }
     button {
       padding:10px 16px;
       margin:6px;
       font-size:20px;
-      border-radius:8px;
       border:none;
+      border-radius:8px;
+      color:#fff;
       cursor:pointer;
     }
-    #mic { background:#4caf50; color:#fff; }
-    #live { background:#2196f3; color:#fff; }
-    #stopLive { background:#ff9800; color:#fff; display:none; }
-    #erase { background:#f44336; color:#fff; }
-    .footer { margin-top:8px; color:#666; font-size:13px; }
+    #mic { background:#4caf50; }
+    #live { background:#2196f3; }
+    #stopLive { background:#ff9800; display:none; }
+    #erase { background:#f44336; }
   </style>
 </head>
 <body>
 
-  <h2>🎤 “बोलिए” — एक बार बोलें  •  🎙️ “लाइव बातचीत” — लगातार सुनें</h2>
+  <h2>🎙️ लाइव बातचीत — अपनी आवाज़ से बोलिए</h2>
 
   <div id="output">यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...</div>
 
-  <div class="controls">
+  <div>
     <button id="mic">🎤 बोलिए</button>
-    <button id="live">🎙️ लाइव बातचीत</button>
+    <button id="live">🎧 लाइव बातचीत</button>
     <button id="stopLive">⏹ रोकिए</button>
     <button id="erase">🧹 मिटाइए</button>
   </div>
 
-  <div class="footer">© Speech to Text (Hindi)</div>
-
   <script>
-    const output = document.getElementById('output');
-    const micBtn = document.getElementById('mic');
-    const liveBtn = document.getElementById('live');
-    const stopLiveBtn = document.getElementById('stopLive');
-    const eraseBtn = document.getElementById('erase');
-
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const output = document.getElementById("output");
+    const mic = document.getElementById("mic");
+    const live = document.getElementById("live");
+    const stopLive = document.getElementById("stopLive");
+    const erase = document.getElementById("erase");
+
     if (!SpeechRecognition) {
-      output.innerText = "आपका ब्राउज़र Speech Recognition को सपोर्ट नहीं करता। कृपया Chrome/Edge प्रयोग करें।";
+      output.innerText = "आपका ब्राउज़र Speech Recognition सपोर्ट नहीं करता। Chrome या Edge आज़माएँ।";
     }
 
-    // One-time (single) recognition
-    const singleRec = new SpeechRecognition();
-    singleRec.lang = 'hi-IN';
-    singleRec.interimResults = false;
-    singleRec.maxAlternatives = 1;
+    // Single speech (non-live)
+    const rec = new SpeechRecognition();
+    rec.lang = "hi-IN";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
 
-    micBtn.addEventListener('click', () => {
-      try {
-        singleRec.start();
-        output.innerText = "🎙️ माइक सुन रहा है...";
-      } catch (e) {
-        console.error(e);
-      }
-    });
-
-    singleRec.onresult = (ev) => {
-      output.innerText = ev.results[0][0].transcript;
-    };
-    singleRec.onerror = (ev) => {
-      output.innerText = "⚠️ त्रुटि: " + ev.error;
+    mic.onclick = () => {
+      rec.start();
+      output.innerText = "🎙️ माइक सुन रहा है...";
     };
 
-    // Live continuous recognition (mobile-friendly, deduplicated)
+    rec.onresult = (e) => {
+      output.innerText = e.results[0][0].transcript;
+    };
+
+    rec.onerror = (e) => {
+      output.innerText = "⚠️ त्रुटि: " + e.error;
+    };
+
+    // LIVE mode
     const liveRec = new SpeechRecognition();
-    liveRec.lang = 'hi-IN';
-    liveRec.interimResults = true;   // show interim but commit final only
-    liveRec.continuous = true;      // request continuous (may not be honored on all mobiles)
+    liveRec.lang = "hi-IN";
+    liveRec.interimResults = true;
+    liveRec.continuous = true;
 
-    let isLiveActive = false;
+    let isLive = false;
+    let committed = "";
+    let lastFinal = "";
+    let lastTime = 0;
     let restarting = false;
-    let committedText = "";         // all confirmed final text
-    let lastFinalSegment = "";      // last appended final segment (for dedupe)
 
-    liveBtn.addEventListener('click', () => {
-      if (!isLiveActive) {
-        isLiveActive = true;
-        committedText = "";        // start fresh or keep existing? you can change if you want to append instead
-        lastFinalSegment = "";
-        output.innerText = "🎧 लाइव बातचीत चालू है... बोलते रहिए।";
-        liveBtn.style.display = 'none';
-        stopLiveBtn.style.display = 'inline-block';
-        startLiveSafely();
-      }
-    });
+    live.onclick = () => {
+      isLive = true;
+      committed = "";
+      lastFinal = "";
+      output.innerText = "🎧 लाइव बातचीत शुरू... बोलिए।";
+      live.style.display = "none";
+      stopLive.style.display = "inline-block";
+      startLive();
+    };
 
-    function startLiveSafely() {
-      // ensure we don't call start when it's still in stopping/starting transient
-      try {
-        liveRec.start();
-      } catch (e) {
-        // Chrome may throw if start called while already starting - retry shortly
-        setTimeout(() => {
-          try { liveRec.start(); } catch (err) { /* ignore */ }
-        }, 300);
-      }
+    function startLive() {
+      try { liveRec.start(); } catch (err) {}
     }
 
-    liveRec.onresult = (ev) => {
-      // Build interim + finals but commit only final segments (isFinal)
-      // This avoids duplicates — final segments get appended once.
+    liveRec.onresult = (event) => {
       let interim = "";
-      for (let i = ev.resultIndex; i < ev.results.length; ++i) {
-        const res = ev.results[i];
-        const text = res[0].transcript.trim();
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        const txt = res[0].transcript.trim();
         if (res.isFinal) {
-          // commit this final result if it's not same as last committed final segment
-          if (text && text !== lastFinalSegment) {
-            // Append to committed text with spacing
-            if (committedText && !committedText.endsWith("\n")) committedText += " ";
-            committedText += text;
-            lastFinalSegment = text;
+          // ✅ Deduplicate by checking last text + timestamp
+          const now = Date.now();
+          if (txt && (txt !== lastFinal || now - lastTime > 1200)) {
+            committed += (committed ? " " : "") + txt;
+            lastFinal = txt;
+            lastTime = now;
           }
         } else {
-          // build the interim overlay (not committed)
-          interim += text + " ";
+          interim += txt + " ";
         }
       }
-
-      // Show combined: committed (finals) + interim
-      output.innerText = committedText + (interim ? ("\n" + interim.trim()) : "");
-      // scroll to bottom
+      output.innerText = committed + (interim ? "\n" + interim.trim() : "");
       output.scrollTop = output.scrollHeight;
     };
 
-    liveRec.onerror = (ev) => {
-      // ignore "no-speech" and "aborted" quietly to avoid spam,
-      // show others so user knows something's wrong.
-      if (ev.error && ev.error !== "no-speech" && ev.error !== "aborted") {
-        output.innerText += "\n⚠️ त्रुटि: " + ev.error;
+    liveRec.onerror = (e) => {
+      if (e.error !== "no-speech" && e.error !== "aborted") {
+        output.innerText += "\n⚠️ त्रुटि: " + e.error;
       }
     };
 
-    // onend: restart only when live is active, with guard to avoid overlap
     liveRec.onend = () => {
-      if (!isLiveActive) return;
+      if (!isLive) return;
       if (restarting) return;
       restarting = true;
-      // small delay ensures previous session fully ended on mobile before starting again
       setTimeout(() => {
         restarting = false;
-        if (isLiveActive) {
-          startLiveSafely();
-        }
-      }, 350);
+        if (isLive) startLive();
+      }, 400);
     };
 
-    stopLiveBtn.addEventListener('click', () => {
-      isLiveActive = false;
-      try { liveRec.stop(); } catch (e) { /* ignore */ }
-      stopLiveBtn.style.display = 'none';
-      liveBtn.style.display = 'inline-block';
-      output.innerText = (committedText ? committedText : "") + "\n🛑 बातचीत रोक दी गई।";
-      output.scrollTop = output.scrollHeight;
-    });
+    stopLive.onclick = () => {
+      isLive = false;
+      try { liveRec.stop(); } catch (e) {}
+      stopLive.style.display = "none";
+      live.style.display = "inline-block";
+      output.innerText = committed + "\n🛑 बातचीत रोक दी गई।";
+    };
 
-    eraseBtn.addEventListener('click', () => {
-      committedText = "";
-      lastFinalSegment = "";
+    erase.onclick = () => {
+      committed = "";
+      lastFinal = "";
       output.innerText = "यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...";
-    });
-
-    // Optional: keep screen awake? Not included to keep browser compatibility simple.
+    };
   </script>
 
 </body>
