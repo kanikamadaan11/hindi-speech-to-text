@@ -1,19 +1,16 @@
 <!DOCTYPE html>
 <html lang="hi">
 <head>
-<head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>Speech to Text (Hindi)</title>
   <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTbiyK1eA3OHkF8SuxjH0mI4DYPH5vteHasfKegiUIBbAubuwCGWlCbt7g&s">
   <link rel="manifest" href="https://github.com/kanikamadaan11/hindi-speech-to-text/blob/main/manifest.json">
   <meta name="theme-color" content="#4caf50">
-  <!-- Ensure these meta tags are included for mobile PWA support -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Speech to Text">
-</head>
 
   <style>
     body {
@@ -24,14 +21,14 @@
     }
 
     h2 {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeeba;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 30px;
-    font-size: 24px;
-    line-height: 1.4;
+      background-color: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      font-size: 24px;
+      line-height: 1.4;
     }
 
     #output {
@@ -75,31 +72,54 @@
     #erase:hover {
       background-color: #d32f2f;
     }
-  .fa-times {
-  color: white;
-font-size: 35px;
-}
 
+    #live {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    #live:hover {
+      background-color: #1976d2;
+    }
+
+    #stopLive {
+      background-color: #ff9800;
+      color: white;
+      display: none;
+    }
+
+    #stopLive:hover {
+      background-color: #fb8c00;
+    }
   </style>
 </head>
 <body>
 
   <h2>
     🎤 बोलिए बटन को दबा कर बोलिए।<br>
+    या 🔁 लाइव ट्रांसक्रिप्शन मोड चालू करें, यह तब तक सुनता रहेगा जब तक आप "⏹ रोकिए" नहीं दबाते।<br>
     अगली बात बोलने के लिए 🧹 मिटाइए दबा कर फिर से 🎤 बोलिए दबाएं।
   </h2>
 
   <div id="output">यहाँ आपकी आवाज़ का टेस्ट दिखेगा...</div>
 
-  <button id="mic">🎤 बोलिए</button>
+  <button id="mic">🎤 बोलिए (Single)</button>
+  <button id="live">🔁 लाइव ट्रांसक्रिप्शन</button>
+  <button id="stopLive">⏹ रोकिए</button>
   <button id="erase">🧹 मिटाइए</button>
 
   <script>
     const output = document.getElementById('output');
     const micButton = document.getElementById('mic');
+    const liveButton = document.getElementById('live');
+    const stopLiveButton = document.getElementById('stopLive');
     const eraseButton = document.getElementById('erase');
 
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    // Standard Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    // === Single Transcription ===
+    const recognition = new SpeechRecognition();
     recognition.lang = 'hi-IN';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -118,8 +138,41 @@ font-size: 35px;
       output.innerHTML = "त्रुटि: " + event.error;
     };
 
- eraseButton.addEventListener('click', () => {
-      output.innerHTML = "🎤 बोलिए बटन को दबा कर बोलिए";  // Placeholder text after erase
+    // === Live Continuous Transcription ===
+    const liveRecognition = new SpeechRecognition();
+    liveRecognition.lang = 'hi-IN';
+    liveRecognition.interimResults = true;
+    liveRecognition.continuous = true;
+
+    liveButton.addEventListener('click', () => {
+      liveRecognition.start();
+      liveButton.style.display = 'none';
+      stopLiveButton.style.display = 'inline-block';
+      output.innerHTML = "🔁 लाइव मोड चालू है... बोलते रहिए, आपकी बात नीचे लिखी जाएगी।";
+    });
+
+    liveRecognition.onresult = (event) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        finalTranscript += event.results[i][0].transcript + ' ';
+      }
+      output.innerHTML = finalTranscript;
+    };
+
+    liveRecognition.onerror = (event) => {
+      output.innerHTML += "<br>⚠️ त्रुटि: " + event.error;
+    };
+
+    stopLiveButton.addEventListener('click', () => {
+      liveRecognition.stop();
+      stopLiveButton.style.display = 'none';
+      liveButton.style.display = 'inline-block';
+      output.innerHTML += "<br>🛑 लाइव ट्रांसक्रिप्शन बंद कर दिया गया।";
+    });
+
+    // === Erase Output ===
+    eraseButton.addEventListener('click', () => {
+      output.innerHTML = "🎤 बोलिए बटन को दबा कर बोलिए";
     });
   </script>
 
