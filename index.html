@@ -1,141 +1,128 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>लाइव बातचीत (Speech-to-Text)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Baatcheet</title>
   <style>
     body {
-      margin: 0; font-family: Arial, sans-serif; background: #f5f5f5;
-      text-align: center; overflow: hidden; padding: 10px;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, sans-serif;
+      background: #f8f9fa;
+      text-align: center;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
+
     h2 {
-      background:#fff8e1; color:#795548; border:1px solid #ffe0b2;
-      border-radius:8px; padding:6px; font-size:16px; margin-bottom:10px;
+      margin-top: 10px;
+      font-size: 18px;
     }
-    #output {
-      width:100%; height:60vh; background:#fff; border:1px solid #ccc;
-      border-radius:10px; text-align:left; padding:10px; overflow-y:auto;
-      font-size:24px; white-space:pre-wrap;
+
+    #transcript {
+      flex: 1;
+      margin: 10px;
+      padding: 10px;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      overflow-y: auto;
+      background: white;
+      font-size: 16px;
+      text-align: left;
+      max-height: 60vh;
     }
+
     button {
-      margin:5px; padding:10px 16px; font-size:20px;
-      border:none; border-radius:8px; color:#fff; cursor:pointer;
+      padding: 10px 15px;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
     }
-    #mic { background:#4caf50; }
-    #live { background:#2196f3; }
-    #stopLive { background:#ff9800; display:none; }
-    #erase { background:#f44336; }
+
+    button:disabled {
+      background-color: #999;
+    }
   </style>
 </head>
 <body>
 
-  <h2>🎙️ लाइव बातचीत – बोलिए और तुरंत टेक्स्ट देखिए</h2>
-  <div id="output">यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...</div>
+  <h2>🎤 Live Baatcheet</h2>
+  <div id="transcript"></div>
+
   <div>
-    <button id="mic">🎤 बोलिए</button>
-    <button id="live">🎧 लाइव बातचीत</button>
-    <button id="stopLive">⏹ रोकिए</button>
-    <button id="erase">🧹 मिटाइए</button>
+    <button id="startBtn">Start</button>
+    <button id="stopBtn" disabled>Stop</button>
   </div>
 
   <script>
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const out = document.getElementById("output");
-    const mic = document.getElementById("mic");
-    const live = document.getElementById("live");
-    const stopLive = document.getElementById("stopLive");
-    const erase = document.getElementById("erase");
+    let recognition;
+    let isListening = false;
+    let lastTranscript = '';
+    let lastTimestamp = 0;
 
-    if (!SpeechRecognition) {
-      out.innerText = "आपका ब्राउज़र Speech Recognition सपोर्ट नहीं करता।";
-    }
+    if ('webkitSpeechRecognition' in window) {
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'hi-IN'; // or 'en-IN' if you want English
 
-    // Single-press (non-live)
-    const rec = new SpeechRecognition();
-    rec.lang = "hi-IN";
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
+      recognition.onstart = () => {
+        isListening = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+      };
 
-    mic.onclick = () => {
-      rec.start();
-      out.innerText = "🎙️ माइक सुन रहा है...";
-    };
+      recognition.onend = () => {
+        isListening = false;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+      };
 
-    rec.onresult = e => { out.innerText = e.results[0][0].transcript; };
-    rec.onerror = e => { out.innerText = "⚠️ त्रुटि: " + e.error; };
+      recognition.onresult = (event) => {
+        const transcriptDiv = document.getElementById('transcript');
+        let finalText = '';
 
-    // LIVE conversation mode
-    const liveRec = new SpeechRecognition();
-    liveRec.lang = "hi-IN";
-    liveRec.interimResults = true;
-    liveRec.continuous = true;
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            const text = result[0].transcript.trim();
 
-    let isLive = false, fullText = "", lastFinal = "", lastTime = 0;
+            // Ignore duplicates (by text + timing)
+            const now = Date.now();
+            const isDuplicate =
+              text === lastTranscript && now - lastTimestamp < 3000;
 
-    live.onclick = () => {
-      isLive = true;
-      fullText = ""; lastFinal = ""; lastTime = 0;
-      out.innerText = "🎧 लाइव बातचीत शुरू... बोलिए।";
-      live.style.display = "none"; stopLive.style.display = "inline-block";
-      startLive();
-    };
-
-    function startLive() { try { liveRec.start(); } catch(e){} }
-
-    function similarity(a,b){
-      if(!a||!b) return 0;
-      a=a.trim(); b=b.trim();
-      const shorter=a.length<b.length?a:b, longer=a.length<b.length?b:a;
-      if(longer.length===0) return 1;
-      let same=0;
-      for(let i=0;i<shorter.length;i++){
-        if(longer[i]===shorter[i]) same++;
-      }
-      return same/longer.length;
-    }
-
-    liveRec.onresult = e => {
-      let interim="";
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        const res=e.results[i], txt=res[0].transcript.trim();
-        if(res.isFinal){
-          const now=Date.now();
-          const sim=similarity(txt,lastFinal);
-          if(sim<0.9 || now-lastTime>2000){   // ignore near-duplicates
-            fullText += (fullText ? " " : "") + txt;
-            lastFinal = txt; lastTime = now;
+            if (!isDuplicate) {
+              finalText += text + ' ';
+              lastTranscript = text;
+              lastTimestamp = now;
+            }
           }
-        } else { interim += txt + " "; }
-      }
-      out.innerText = fullText + (interim ? "\n" + interim.trim() : "");
-      out.scrollTop = out.scrollHeight;
-    };
+        }
 
-    let restarting=false;
-    liveRec.onend = () => {
-      if(!isLive) return;
-      if(restarting) return;
-      restarting=true;
-      setTimeout(()=>{restarting=false; if(isLive) startLive();},500);
-    };
+        if (finalText) {
+          transcriptDiv.textContent += finalText;
+          transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+        }
+      };
 
-    liveRec.onerror = e => {
-      if(e.error!=="no-speech" && e.error!=="aborted"){
-        out.innerText += "\n⚠️ त्रुटि: " + e.error;
-      }
-    };
+      document.getElementById('startBtn').addEventListener('click', () => {
+        if (!isListening) recognition.start();
+      });
 
-    stopLive.onclick = () => {
-      isLive=false;
-      try{liveRec.stop();}catch(e){}
-      stopLive.style.display="none"; live.style.display="inline-block";
-      out.innerText = fullText + "\n🛑 बातचीत रोक दी गई।";
-    };
-
-    erase.onclick = () => {
-      fullText=""; lastFinal=""; out.innerText="यहाँ आपकी आवाज़ का टेक्स्ट दिखेगा...";
-    };
+      document.getElementById('stopBtn').addEventListener('click', () => {
+        if (isListening) recognition.stop();
+      });
+    } else {
+      alert('Speech Recognition not supported in this browser.');
+    }
   </script>
 </body>
 </html>
